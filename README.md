@@ -104,6 +104,10 @@ python evaluate_multiple_experiments.py \
   --output_dir 'metrics/' \
   --pro_integration_limit 0.3
 ```
+## Project made by:
+Aadya Jha 
+Bhargavi Kumari 
+
 
 ## Visualize the evaluation results.
 After running `evaluate_experiment.py` or `evaluate_multiple_experiments.py`,
