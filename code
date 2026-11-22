@@ -1,0 +1,157 @@
+# data loading + cleaning
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from pathlib import Path
+from PIL import Image
+from collections import Counter
+import hashlib
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import NearestNeighbors, LocalOutlierFactor
+from sklearn.svm import OneClassSVM
+from sklearn.metrics import roc_auc_score, roc_curve
+
+# Bottle only: evaluate these three defect folders separately.
+CATEGORY = 'bottle'
+DEFECTS = ['broken_large', 'broken_small', 'contamination']
+MODEL_NAMES = ['k-NN distance', 'One-Class SVM', 'Isolation Forest', 'Local Outlier Factor']
+COLORS = {'k-NN distance':'#2E86AB', 'One-Class SVM':'#F18F01',
+          'Isolation Forest':'#3BB273', 'Local Outlier Factor':'#C73E1D'}
+
+def readable(p):
+    """Only exclude files that cannot be decoded. Never remove images for looking anomalous."""
+    try:
+        with Image.open(p) as im:
+            im.verify()
+        return True
+    except Exception:
+        return False
+
+def sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(block)
+    return h.hexdigest()
+
+def load_bottle():
+    matches = list(Path(DATA_DIR).rglob('bottle/train/good'))
+    if not matches:
+        raise FileNotFoundError("Could not find bottle/train/good under DATA_DIR.")
+    base = matches[0].parents[1]
+
+    train_all = sorted((base/'train'/'good').glob('*.png'))
+    test_all = sorted((base/'test').rglob('*.png'))
+
+    bad_train = [p for p in train_all if not readable(p)]
+    bad_test = [p for p in test_all if not readable(p)]
+    tr = [p for p in train_all if p not in bad_train]
+    te = [p for p in test_all if p not in bad_test]
+
+    labels = np.array([p.parent.name for p in te])
+    expected = {'good', *DEFECTS}
+    unexpected = sorted(set(labels) - expected)
+    if unexpected:
+        raise ValueError(f"Unexpected folders found in bottle/test: {unexpected}. Review the dataset instead of silently dropping them.")
+
+    missing = [d for d in ['good', *DEFECTS] if not np.any(labels == d)]
+    if missing:
+        raise ValueError(f"Missing readable bottle test classes: {missing}")
+
+    # Exact byte-level duplicate check across train and test.
+    train_hashes = {sha256_file(p) for p in tr}
+    test_hashes = {sha256_file(p) for p in te}
+    overlap = train_hashes.intersection(test_hashes)
+    if overlap:
+        raise ValueError(f"Found {len(overlap)} exact duplicate file(s) across train and test. Resolve split leakage before evaluation.")
+
+    print(f"Training normal images: {len(tr)}")
+    print(f"Testing images: {len(te)}")
+    print("Test class counts:", pd.Series(labels).value_counts().to_dict())
+    print(f"Unreadable files excluded: train={len(bad_train)}, test={len(bad_test)}")
+    print("Exact train/test file-content overlap: 0")
+    return tr, te, labels
+
+
+# import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from pathlib import Path
+from PIL import Image
+from collections import Counter
+import hashlib
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import NearestNeighbors, LocalOutlierFactor
+from sklearn.svm import OneClassSVM
+from sklearn.metrics import roc_auc_score, roc_curve
+
+# Bottle only: evaluate these three defect folders separately.
+CATEGORY = 'bottle'
+DEFECTS = ['broken_large', 'broken_small', 'contamination']
+MODEL_NAMES = ['k-NN distance', 'One-Class SVM', 'Isolation Forest', 'Local Outlier Factor']
+COLORS = {'k-NN distance':'#2E86AB', 'One-Class SVM':'#F18F01',
+          'Isolation Forest':'#3BB273', 'Local Outlier Factor':'#C73E1D'}
+
+def readable(p):
+    """Only exclude files that cannot be decoded. Never remove images for looking anomalous."""
+    try:
+        with Image.open(p) as im:
+            im.verify()
+        return True
+    except Exception:
+        return False
+
+def sha256_file(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1024 * 1024), b''):
+            h.update(block)
+    return h.hexdigest()
+
+def load_bottle():
+    matches = list(Path(DATA_DIR).rglob('bottle/train/good'))
+    if not matches:
+        raise FileNotFoundError("Could not find bottle/train/good under DATA_DIR.")
+    base = matches[0].parents[1]
+
+    train_all = sorted((base/'train'/'good').glob('*.png'))
+    test_all = sorted((base/'test').rglob('*.png'))
+
+    bad_train = [p for p in train_all if not readable(p)]
+    bad_test = [p for p in test_all if not readable(p)]
+    tr = [p for p in train_all if p not in bad_train]
+    te = [p for p in test_all if p not in bad_test]
+
+    labels = np.array([p.parent.name for p in te])
+    expected = {'good', *DEFECTS}
+    unexpected = sorted(set(labels) - expected)
+    if unexpected:
+        raise ValueError(f"Unexpected folders found in bottle/test: {unexpected}. Review the dataset instead of silently dropping them.")
+
+    missing = [d for d in ['good', *DEFECTS] if not np.any(labels == d)]
+    if missing:
+        raise ValueError(f"Missing readable bottle test classes: {missing}")
+
+    # Exact byte-level duplicate check across train and test.
+    train_hashes = {sha256_file(p) for p in tr}
+    test_hashes = {sha256_file(p) for p in te}
+    overlap = train_hashes.intersection(test_hashes)
+    if overlap:
+        raise ValueError(f"Found {len(overlap)} exact duplicate file(s) across train and test. Resolve split leakage before evaluation.")
+
+    print(f"Training normal images: {len(tr)}")
+    print(f"Testing images: {len(te)}")
+    print("Test class counts:", pd.Series(labels).value_counts().to_dict())
+    print(f"Unreadable files excluded: train={len(bad_train)}, test={len(bad_test)}")
+    print("Exact train/test file-content overlap: 0")
+    return tr, te, labels
+
+#downloading
+      
+  !pip -q install kagglehub
+import kagglehub
+DATA_DIR = kagglehub.dataset_download('ipythonx/mvtec-ad')
+print(DATA_DIR)
